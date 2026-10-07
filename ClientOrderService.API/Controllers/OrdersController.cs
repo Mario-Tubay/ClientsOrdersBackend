@@ -20,7 +20,12 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<OrderDto>>> GetAll([FromQuery] string? search, [FromQuery] string? status)
+    public async Task<ActionResult<IEnumerable<OrderDto>>> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] Guid? clientId,
+        [FromQuery] DateTime? startDate,
+        [FromQuery] DateTime? endDate)
     {
         var query = _context.Orders
             .Include(o => o.Client)
@@ -32,12 +37,30 @@ public class OrdersController : ControllerBase
             var s = search.Trim().ToLower();
             query = query.Where(o =>
                 o.OrderNumber.ToLower().Contains(s) ||
-                (o.Client != null && o.Client.FullName.ToLower().Contains(s)));
+                (o.Client != null && o.Client.FullName.ToLower().Contains(s)) ||
+                o.Notes.ToLower().Contains(s));
         }
 
         if (!string.IsNullOrWhiteSpace(status) && status.ToLower() != "all")
         {
             query = query.Where(o => o.Status.ToLower() == status.ToLower());
+        }
+
+        if (clientId.HasValue && clientId.Value != Guid.Empty)
+        {
+            query = query.Where(o => o.ClientId == clientId.Value);
+        }
+
+        if (startDate.HasValue)
+        {
+            var startUtc = DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc);
+            query = query.Where(o => o.OrderDate >= startUtc);
+        }
+
+        if (endDate.HasValue)
+        {
+            var endUtc = DateTime.SpecifyKind(endDate.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            query = query.Where(o => o.OrderDate <= endUtc);
         }
 
         var orders = await query
