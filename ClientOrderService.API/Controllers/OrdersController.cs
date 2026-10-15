@@ -1,4 +1,4 @@
-using ClientOrderService.API.Data;
+﻿using ClientOrderService.API.Data;
 using ClientOrderService.API.DTOs;
 using ClientOrderService.API.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -75,6 +75,7 @@ public class OrdersController : ControllerBase
                 Status = o.Status,
                 TotalAmount = o.TotalAmount,
                 Notes = o.Notes,
+                CheckTransporte = o.CheckTransporte,
                 Items = o.Items.Select(i => new OrderItemDto
                 {
                     Id = i.Id,
@@ -112,6 +113,7 @@ public class OrdersController : ControllerBase
             Status = order.Status,
             TotalAmount = order.TotalAmount,
             Notes = order.Notes,
+            CheckTransporte = order.CheckTransporte,
             Items = order.Items.Select(i => new OrderItemDto
             {
                 Id = i.Id,
@@ -146,7 +148,7 @@ public class OrdersController : ControllerBase
 
         if (await _context.Orders.AnyAsync(o => o.OrderNumber == orderNumber))
         {
-            return Conflict(new { message = $"El número de orden {orderNumber} ya existe." });
+            return Conflict(new { message = $"El numero de orden {orderNumber} ya existe." });
         }
 
         var orderId = Guid.NewGuid();
@@ -157,7 +159,8 @@ public class OrdersController : ControllerBase
             ProductName = i.ProductName.Trim(),
             Quantity = i.Quantity,
             UnitPrice = i.UnitPrice,
-            Subtotal = i.Quantity * i.UnitPrice
+            Subtotal = i.Quantity * i.UnitPrice,
+
         }).ToList();
 
         var totalAmount = items.Sum(i => i.Subtotal);
@@ -172,7 +175,8 @@ public class OrdersController : ControllerBase
             Notes = request.Notes?.Trim() ?? string.Empty,
             TotalAmount = totalAmount,
             CreatedAt = DateTime.UtcNow,
-            Items = items
+            Items = items,
+            CheckTransporte = request.CheckTransporte
         };
 
         _context.Orders.Add(order);
@@ -188,6 +192,7 @@ public class OrdersController : ControllerBase
             Status = order.Status,
             TotalAmount = order.TotalAmount,
             Notes = order.Notes,
+            CheckTransporte = order.CheckTransporte,
             Items = order.Items.Select(i => new OrderItemDto
             {
                 Id = i.Id,
@@ -237,6 +242,7 @@ public class OrdersController : ControllerBase
         order.Notes = request.Notes?.Trim() ?? string.Empty;
         order.TotalAmount = newItems.Sum(i => i.Subtotal);
         order.UpdatedAt = DateTime.UtcNow;
+        order.CheckTransporte = request.CheckTransporte;
         order.Items = newItems;
 
         await _context.SaveChangesAsync();
@@ -251,6 +257,7 @@ public class OrdersController : ControllerBase
             Status = order.Status,
             TotalAmount = order.TotalAmount,
             Notes = order.Notes,
+            CheckTransporte = order.CheckTransporte,
             Items = order.Items.Select(i => new OrderItemDto
             {
                 Id = i.Id,
@@ -276,7 +283,7 @@ public class OrdersController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        return Ok(new { message = "Estado actualizado con éxito.", status = order.Status });
+        return Ok(new { message = "Estado actualizado con exito.", status = order.Status });
     }
 
     [HttpDelete("{id:guid}")]

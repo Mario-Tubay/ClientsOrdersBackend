@@ -1,0 +1,81 @@
+﻿services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: clients-sqlserver
+    restart: unless-stopped
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=SuperSecretDbPassword2026!
+    ports:
+      - "14333:1433" 
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - clients-net
+
+  auth-service:
+    build:
+      context: ./BackClients/AuthService.API
+      dockerfile: Dockerfile
+    container_name: clients-auth-service
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ClientsAuthDb;User Id=sa;Password=SuperSecretDbPassword2026!;TrustServerCertificate=True
+    depends_on:
+      - sqlserver
+    networks:
+      - clients-net
+
+  client-order-service:
+    build:
+      context: ./BackClients/ClientOrderService.API
+      dockerfile: Dockerfile
+    container_name: clients-order-service
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=ClientOrdersDb;User Id=sa;Password=SuperSecretDbPassword2026!;TrustServerCertificate=True
+    depends_on:
+      - sqlserver
+    networks:
+      - clients-net
+
+  api-gateway:
+    build:
+      context: ./BackClients/ApiGateway
+      dockerfile: Dockerfile
+    container_name: clients-api-gateway
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ASPNETCORE_HTTP_PORTS=8080
+    ports:
+      - "5000:8080" # Expone el Gateway en el puerto 5000
+    depends_on:
+      - auth-service
+      - client-order-service
+    networks:
+      - clients-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clients-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80" # Expone el Frontend en el puerto 4200
+    depends_on:
+      - api-gateway
+    networks:
+      - clients-net
+
+volumes:
+  sqlserver_data:
+
+networks:
+  clients-net:
+    driver: bridge

@@ -37,4 +37,6 @@ public class Order
 
     // Relación con items
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+
+    public bool CheckTransporte { get; set; } 
 }

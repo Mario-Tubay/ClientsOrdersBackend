@@ -1,5 +1,6 @@
-using System.Text;
+﻿using System.Text;
 using AuthService.API.Data;
+using AuthService.API.Models;
 using AuthService.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -8,16 +9,22 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Base de datos
+// 1. Base de datos con soporte de reintentos para Docker
 builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"), sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 10,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null);
+    }));
 
-// 2. Servicios de aplicación
+// 2. Servicios de aplicacion
 builder.Services.AddScoped<IJwtService, JwtService>();
 
-// 3. Autenticación JWT
+// 3. Autenticacion JWT
 var jwtSecret = builder.Configuration["JwtSettings:SecretKey"]
-    ?? throw new InvalidOperationException("JwtSettings:SecretKey no está configurado.");
+    ?? throw new InvalidOperationException("JwtSettings:SecretKey no esta configurado.");
 var jwtIssuer = builder.Configuration["JwtSettings:Issuer"];
 var jwtAudience = builder.Configuration["JwtSettings:Audience"];
 
@@ -54,7 +61,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 5. Controladores y Swagger con botón Authorize
+// 5. Controladores y Swagger con boton Authorize
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -63,10 +70,9 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "AuthService API",
         Version = "v1",
-        Description = "Microservicio de Autenticación y Gestión de Usuarios"
+        Description = "Microservicio de Autenticacion y Gestion de Usuarios"
     });
 
-    // Soporte para ingresar el token Bearer en Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "Ingresa tu token JWT en este formato: Bearer {tu_token}",
@@ -94,6 +100,36 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Migracion automatica al iniciar
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+    try
+    {
+        await context.Database.MigrateAsync();
+        if (!await context.Users.AnyAsync())
+        {
+            context.Users.Add(new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "admin@torres.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123*"),
+                FirstName = "Admin",
+                LastName = "Torres",
+                Role = "Admin",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Error aplicando migraciones en AuthService.");
+    }
+}
+
 // 6. Pipeline HTTP
 if (app.Environment.IsDevelopment())
 {
@@ -101,7 +137,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "AuthService API v1");
-        c.RoutePrefix = string.Empty; // Carga Swagger en la raíz "/"
+        c.RoutePrefix = string.Empty;
     });
 }
 

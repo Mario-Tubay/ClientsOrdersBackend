@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace ClientOrderService.API.DTOs;
 
@@ -21,6 +21,7 @@ public class OrderDto
     public string Status { get; set; } = "Pending";
     public decimal TotalAmount { get; set; }
     public string Notes { get; set; } = string.Empty;
+    public bool CheckTransporte { get; set; }
     public List<OrderItemDto> Items { get; set; } = new();
 }
 
@@ -51,6 +52,8 @@ public class CreateOrderRequest
     [StringLength(500)]
     public string Notes { get; set; } = string.Empty;
 
+    public bool CheckTransporte { get; set; }
+
     [Required]
     [MinLength(1)]
     public List<CreateOrderItemRequest> Items { get; set; } = new();
@@ -67,7 +70,7 @@ public class UpdateOrderRequest
 
     [StringLength(500)]
     public string Notes { get; set; } = string.Empty;
-
+    public bool CheckTransporte { get; set; }
     public List<CreateOrderItemRequest> Items { get; set; } = new();
 }
 

@@ -1,15 +1,16 @@
-using Ocelot.DependencyInjection;
+﻿using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Cargar configuración de Ocelot desde ocelot.json
-builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
+// 1. Cargar configuracion de Ocelot segun el entorno (Docker vs Local)
+var ocelotFile = builder.Environment.IsEnvironment("Docker") ? "ocelot.Docker.json" : "ocelot.json";
+builder.Configuration.AddJsonFile(ocelotFile, optional: false, reloadOnChange: true);
 
 // 2. Registrar Ocelot en el contenedor de dependencias
 builder.Services.AddOcelot();
 
-// 3. Configurar CORS para permitir comunicación desde Angular (http://localhost:4200)
+// 3. Configurar CORS para permitir comunicacion desde Angular (http://localhost:4200)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>

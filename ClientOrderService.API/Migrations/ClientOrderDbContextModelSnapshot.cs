@@ -76,6 +76,9 @@ namespace ClientOrderService.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("CheckTransporte")
+                        .HasColumnType("bit");
+
                     b.Property<Guid>("ClientId")
                         .HasColumnType("uniqueidentifier");
 
